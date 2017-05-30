@@ -38,7 +38,7 @@
 #define D7	GPIO_ODR_7
 
 #define DELAY1	800
-#define DELAY2	1000
+#define DELAY2	900
 //====================================================================
 // GLOBAL VARIABLES
 //====================================================================
@@ -51,7 +51,7 @@ unsigned char count = 0b0;				/*declare the count variable and
 void initPorts(void);
 void Delay(void);
 void main(void);
-int * ConverttoBCD(char count);
+char * ConverttoBCD(char count);
 
 //====================================================================
 // MAIN FUNCTION
@@ -83,54 +83,34 @@ void initPorts(void)
 	GPIOA->PUPDR |= GPIO_PUPDR_PUPDR3_0; 	//enable pull up for SW3
 }
 
-volatile void Delay(void)
+void Delay(void)
 {
 	volatile int i,j;
 	for (i = 0; i < DELAY1; i++)
 	{for (j = 0; j < DELAY2; j++);}
 }
 
-int * ConverttoBCD(char count)
+char * ConverttoBCD(char count1)
 {
-	/*int tempth, temph, tempt, tempo;
-
-	int thousands = count / 1000;
-	tempth = (thousands | 48);
-	//lcd_putchar(tempth);
-	count = count % 1000;
-
-	int hundreds = count / 100;
-	temph = (hundreds | 48);
-	//lcd_putchar(temph);
-	count = count % 100;
-
-	int tens = count / 10;
-	tempt = (tens | 48);
-	//lcd_putchar(tempt);
-	//count = count % 10;
-
-	int ones = count % 10;
-	tempo = (ones | 48);
-	//lcd_putchar(tempo);
-
-	long bcd = tempth << 12;
-	bcd |= temph << 8;
-	bcd |= tempt << 4;
-	bcd |= tempo;
-
-	return bcd;*/
-
-	int bcd[5];
-	int * bcdptr;
-	bcdptr = &bcd;
+	static char bcd[4];
+	char *bcdptr;
+	bcdptr = bcd;
 	int temp = 0;
-	int shift = 0;
+	//int shift = 0;
+	int i = 4;
 
-	while (count > 0)
+	while (count1 > 0)
 	{
-		temp |= (((count % 10)) << (shift++ >> 2));
-		count /= 10;
+		temp = (count1 % 10);// << (shift++ << 2);
+		bcdptr[i] = temp;
+		count1 /= 10;
+		i--;
 	}
+	int j;
+	/*for (j = 0; j < 4; j++)
+	{
+		bcdptr[j] += 0x30;
+	}*/
 
 	return bcdptr;
 
@@ -179,26 +159,21 @@ void main (void)
 			lcd_command(CLEAR);
 			lcd_putstring("Count:");
 			lcd_command(LINE_TWO);
-			int temp = ConverttoBCD(count);
-
-				int thousands = temp / 1000 | 0x30;
-				int hundreds = temp / 100 | 0x30;
-				int tens = temp / 10 | 0x30;
-				int ones = temp % 10 | 0x30;
-
-			lcd_putchar(thousands);
-			lcd_putchar(hundreds);
-			lcd_putchar(tens);
-			lcd_putchar(ones);
-			//lcd_putchar(temp);
+			char *temp1;
+			temp1 = ConverttoBCD(count);
+			int i;
+			for (i = 0; i < 5; i++)
+			{
+				char j = temp1[i];
+				lcd_putchar(j);
+				if (i == 3)
+				{
+					lcd_putstring(".");
+				}
+			}
+			//lcd_putstring(" mm");
 		}
 	}
-}											// End of main
+}												// End of main
 
-//====================================================================
-// FUNCTION DEFINITIONS
-//====================================================================
-
-//********************************************************************
 // END OF PROGRAM
-//********************************************************************
