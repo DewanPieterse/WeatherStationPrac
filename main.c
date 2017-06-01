@@ -37,28 +37,29 @@
 #define D6	GPIO_ODR_6
 #define D7	GPIO_ODR_7
 
-#define DELAY1	800
+#define DELAY1	900
 #define DELAY2	900
 //====================================================================
 // GLOBAL VARIABLES
 //====================================================================
 unsigned char isStarted = 0;
-unsigned char count = 0b0;				/*declare the count variable and
+unsigned char count = 0;				/*declare the count variable and
 										  initialising it to 0*/
+unsigned char *temp;
 //====================================================================
 // FUNCTION DECLARATIONS
 //====================================================================
 void initPorts(void);
 void Delay(void);
 void main(void);
-char * ConverttoBCD(char count);
+unsigned char * ConverttoBCD(unsigned char count1);
 
 //====================================================================
 // MAIN FUNCTION
 //====================================================================
 void initPorts(void)
 {
-	//set LEDs to outputs
+	//set LEDs to outputs (MODER = 01
 	RCC->AHBENR |= RCC_AHBENR_GPIOBEN; 		//enable clock for LEDs
 	GPIOB->MODER |= GPIO_MODER_MODER0_0; 	//set LED0 to output
 	GPIOB->MODER |= GPIO_MODER_MODER1_0; 	//set LED1 to output
@@ -69,14 +70,14 @@ void initPorts(void)
 	GPIOB->MODER |= GPIO_MODER_MODER6_0; 	//set LED6 to output
 	GPIOB->MODER |= GPIO_MODER_MODER7_0; 	//set LED7 to output
 
-	// set buttons to inputs
+	// set buttons to inputs (MODER = 00)
 	RCC->AHBENR |= RCC_AHBENR_GPIOAEN; 		//enable clock for push-buttons
 	GPIOA->MODER &= ~GPIO_MODER_MODER0; 	//set SW0 to input
 	GPIOA->MODER &= ~GPIO_MODER_MODER1; 	//set SW1 to input
 	GPIOA->MODER &= ~GPIO_MODER_MODER2; 	//set SW2 to input
 	GPIOA->MODER &= ~GPIO_MODER_MODER3; 	//set SW3 to input
 
-	// enable pull-down resistors
+	// enable pull-down resistors (PUPDR = 01)
 	GPIOA->PUPDR |= GPIO_PUPDR_PUPDR0_0; 	//enable pull up for SW0
 	GPIOA->PUPDR |= GPIO_PUPDR_PUPDR1_0; 	//enable pull up for SW1
 	GPIOA->PUPDR |= GPIO_PUPDR_PUPDR2_0; 	//enable pull up for SW2
@@ -90,52 +91,55 @@ void Delay(void)
 	{for (j = 0; j < DELAY2; j++);}
 }
 
-char * ConverttoBCD(char count1)
+unsigned char * ConverttoBCD(unsigned char countbcd)
 {
-	static char bcd[4];
-	char *bcdptr;
-	bcdptr = bcd;
-	int temp = 0;
-	//int shift = 0;
-	int i = 4;
+	static unsigned char bcd[16];			//Create an char array
+	unsigned char *bcdptr;					//Create a char pointer
+	bcdptr = bcd;							//Point the pointer to the array address
 
-	while (count1 > 0)
-	{
-		temp = (count1 % 10);// << (shift++ << 2);
-		bcdptr[i] = temp;
-		count1 /= 10;
-		i--;
-	}
-	int j;
-	/*for (j = 0; j < 4; j++)
-	{
-		bcdptr[j] += 0x30;
-	}*/
+	unsigned char thousands, hundreds,tens,ones,decimals;
 
-	return bcdptr;
+	thousands = ((countbcd / 1000) + 48);	//Get the thousands value
+	countbcd = countbcd % 1000;				//Modulus of countbcd to get rid of the thousands
+	hundreds = ((countbcd / 100) + 48);		//Get the hundreds value
+	countbcd = countbcd % 100;				//Modulus of countbcd to get rid of the hundreds
+	tens = ((countbcd / 10) + 48);			//Get the tens value
+	countbcd = countbcd % 10;				//Modulus of countbcd to get rid of the thousands
+	ones = ((countbcd / 1) + 48);			//Get the ones value
+	decimals = ((countbcd % 1) + 48);		//Get the decimal value
+
+	bcd[0] = thousands;						//Assign the values to the array
+	bcd[1] = hundreds;
+	bcd[2] = tens;
+	bcd[3] = ones;
+	bcd[4] = 46;
+	bcd[5] = decimals;
+
+	return bcdptr;							//Return the array pointer
 
 }
-
 void main (void)
 {
-	init_LCD();							// Initialise LCD
-	initPorts();						// Initialise ports
-	lcd_putstring("EEE2046F Prac 3B");	// Display string on line 1
-	lcd_command(LINE_TWO);				// Move cursor to line 2
-	lcd_putstring("Dewan Pieterse");	// Display string on line 2
+	init_LCD();								// Initialise LCD
+	initPorts();							// Initialise ports
+	lcd_command(CLEAR);						// Clears LCD before printing again
+	lcd_putstring("EEE2046F Prac 3B");		// Display string on line 1
+	lcd_command(LINE_TWO);					// Move cursor to line 2
+	lcd_putstring("Dewan Pieterse");		// Display string on line 2
 
-	for(;;)								// Loop forever
+	for(;;)									// Loop forever
 	{
-		if ((GPIOA->IDR & SW0) == 0 )//&& (isStarted == 0))
+		if ((GPIOA->IDR & SW0) == 0 )		//check if button 0 is pressed
 		{
-			lcd_command(CLEAR);
-			lcd_putstring("Weather Station");
-			lcd_command(LINE_TWO);
-			lcd_putstring("Press SW2");
-			isStarted = 1;
+			lcd_command(CLEAR);				// Clear lcd screen
+			lcd_putstring("Weather Station");// Write to lcd
+			lcd_command(LINE_TWO);		// Go to line 2 of the lcd
+			lcd_putstring("Press SW2");	// Write to lcd
+			isStarted = 1;				// Variable to keep track of whether button 0 is pressed
+			Delay();
 		}
 
-		else if (isStarted && (GPIOA->IDR & SW1) == 0)
+		else if (isStarted && ((GPIOA->IDR & SW1) == 0))
 		{
 			count ++;					//Increments the count value by 1
 			GPIOB->ODR = count;			//Displaying count on the LEDs
@@ -145,35 +149,17 @@ void main (void)
 										  on one press of the button.		///////////*/
 		}
 
-		/*else if (isStarted && ((GPIOA->IDR & SW2) == 0))
+		else if (isStarted && ((GPIOA->IDR & SW2) == 0))
 		{
-			lcd_command(CLEAR);
-			lcd_putstring("Rainfall:");
-			lcd_command(LINE_TWO);
-			lcd_putstring(" ");
-			lcd_putstring(" mm");
-		}*/
-
-		if ((GPIOA->IDR & SW2) == 0)			//This is for f)///////////////////////////////////////////////////////////////////////////////////
-		{
-			lcd_command(CLEAR);
-			lcd_putstring("Count:");
-			lcd_command(LINE_TWO);
-			char *temp1;
-			temp1 = ConverttoBCD(count);
-			int i;
-			for (i = 0; i < 5; i++)
-			{
-				char j = temp1[i];
-				lcd_putchar(j);
-				if (i == 3)
-				{
-					lcd_putstring(".");
-				}
-			}
-			//lcd_putstring(" mm");
+			lcd_command(CLEAR);			//Clears LCD before printing again
+			lcd_putstring("Count:");	//Prints to LCD
+			lcd_command(LINE_TWO);		//go to line 2 of the lcd
+			//unsigned char rain = count * 0.2;//Multiply by 0.2 to represent rainfall for each button press.
+			temp = ConverttoBCD(count);	//sends the count to ConverttoBCD() function
+			lcd_putstring(temp);		//prints the returned ASCII string to lcd
+			Delay();
 		}
 	}
-}												// End of main
+}										// End of main
 
 // END OF PROGRAM
